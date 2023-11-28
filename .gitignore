@@ -2,3 +2,5 @@
 ssltool
 *.crt
 *_gen.sh
+.idea/*
+build/*
