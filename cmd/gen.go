@@ -67,7 +67,7 @@ or you can enter them interactively: COUNTRY, ORG, OU, LOCALITY, and PROVINCE.`,
 
 		subj := getSubject(country, org, ou, locality, province, commonName)
 		var csrOutput gen.CsrOutputInfo
-		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		key, err := rsa.GenerateKey(rand.Reader, bits)
 		if err != nil {
 			fmt.Println("Couldn't generate private key")
 			os.Exit(1)
@@ -134,6 +134,7 @@ var (
 	sans       = make([]string, 0)
 	keyOut     = ""
 	csrOut     = ""
+	bits       = 2048
 )
 
 func init() {
@@ -144,6 +145,7 @@ func init() {
 	genCmd.Flags().StringVarP(&csrOut, "csrout", "", "-", "Csr out filename. - for stdout")
 	genCmd.Flags().StringVarP(&keyOut, "keyout", "", "-", "Key out filename. - for stdout")
 	genCmd.Flags().BoolVarP(&encryptKey, "encryptkey", "e", false, "Encrypt private key")
+	genCmd.Flags().IntVarP(&bits, "bits", "b", 2048, "RSA bits")
 	err := genCmd.MarkFlagRequired("cn")
 	if err != nil {
 		log.Fatalln("Couldn't mark cn as required.")
