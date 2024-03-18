@@ -29,26 +29,12 @@ var genCmd = &cobra.Command{
 or you can enter them interactively: COUNTRY, ORG, OU, LOCALITY, and PROVINCE.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		scanner := bufio.NewScanner(os.Stdin)
-		country, exists := os.LookupEnv("COUNTRY")
-		if !exists {
-			country = input(scanner, "COUNTRY: ")
-		}
-		org, exists := os.LookupEnv("ORG")
-		if !exists {
-			org = input(scanner, "ORG: ")
-		}
-		ou, exists := os.LookupEnv("OU")
-		if !exists {
-			ou = input(scanner, "OU: ")
-		}
-		locality, exists := os.LookupEnv("LOCALITY")
-		if !exists {
-			locality = input(scanner, "LOCALITY: ")
-		}
-		province, exists := os.LookupEnv("PROVINCE")
-		if !exists {
-			province = input(scanner, "PROVINCE: ")
-		}
+
+		country := promptForInfo(scanner, "COUNTRY", "COUNTRY: ")
+		org := promptForInfo(scanner, "ORG", "ORG: ")
+		ou := promptForInfo(scanner, "OU", "OU: ")
+		locality := promptForInfo(scanner, "LOCALITY", "LOCALITY: ")
+		province := promptForInfo(scanner, "PROVINCE", "PROVINCE: ")
 
 		if len(commonName) == 0 {
 			fmt.Println("The common name must not be blank.")
@@ -57,6 +43,7 @@ or you can enter them interactively: COUNTRY, ORG, OU, LOCALITY, and PROVINCE.`,
 		encryptKeyPass := ""
 		if encryptKey {
 			fmt.Print("Password: ")
+			// int cast is required for windows
 			password, err := terminal.ReadPassword(int(syscall.Stdin))
 			if err != nil {
 				fmt.Println("Couldn't get password.")
@@ -102,6 +89,14 @@ or you can enter them interactively: COUNTRY, ORG, OU, LOCALITY, and PROVINCE.`,
 			}
 		}
 	},
+}
+
+func promptForInfo(scan *bufio.Scanner, env, prompt string) string {
+	data, exists := os.LookupEnv(env)
+	if !exists {
+		data = input(scan, prompt)
+	}
+	return data
 }
 
 func trimStrings(s []string) []string {
