@@ -9,14 +9,15 @@ import (
 	"crypto/rsa"
 	"crypto/x509/pkix"
 	"fmt"
-	"github.com/spf13/cobra"
-	"golang.org/x/crypto/ssh/terminal"
 	"io/fs"
 	"log"
 	"os"
 	"ssltool/pkg/gen"
 	"strings"
 	"syscall"
+
+	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var encryptKey = false
@@ -44,7 +45,7 @@ or you can enter them interactively: COUNTRY, ORG, OU, LOCALITY, and PROVINCE.`,
 		if encryptKey {
 			fmt.Print("Password: ")
 			// int cast is required for windows
-			password, err := terminal.ReadPassword(int(syscall.Stdin))
+			password, err := term.ReadPassword(int(syscall.Stdin))
 			if err != nil {
 				fmt.Println("Couldn't get password.")
 				os.Exit(1)

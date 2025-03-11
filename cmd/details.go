@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"ssltool/pkg/details"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -24,14 +25,18 @@ var detailsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		for _, certDetails := range retrieveDetails {
-			fmt.Printf("Issuer: %s\n  Expiration Date: %v\n", certDetails.Issuer, certDetails.NotAfter.Format("2006-01-02"))
+			fmt.Printf("Issuer: %s\n  Expiration Date: %v\n  Issue Date: %v\n  Serial: %x\n", 
+			certDetails.Issuer, 
+			certDetails.NotAfter.Format(time.RFC3339), 
+			certDetails.Cert.NotBefore.Format(time.RFC3339), 
+			certDetails.Cert.SerialNumber)
 			if len(certDetails.DNSNames) > 0 {
 				fmt.Println("  DNS Names:")
 				for _, name := range certDetails.DNSNames {
 					fmt.Printf("  - %s\n", name)
 				}
 			}
-			if cert {
+			if displayCertPem {
 				details.DisplayPemCertificate(certDetails)
 			}
 			fmt.Println()
@@ -44,7 +49,7 @@ var port = 443
 
 var insecure = false
 
-var cert = false
+var displayCertPem = false
 var detailsExample = `ssltool details --host www.example.com
 ssltool details --host www.example.com --cert`
 
@@ -54,7 +59,7 @@ func init() {
 	detailsCmd.Flags().StringVar(&hostname, "host", "", "hostname to check certificate.")
 	detailsCmd.Flags().IntVar(&port, "port", 443, "port")
 	detailsCmd.Flags().BoolVarP(&insecure, "insecure", "i", false, "Don't verify certificates.")
-	detailsCmd.Flags().BoolVarP(&cert, "cert", "c", false, "Print certificate in pem format.")
+	detailsCmd.Flags().BoolVarP(&displayCertPem, "cert", "c", false, "Print certificate in pem format.")
 	err := detailsCmd.MarkFlagRequired("host")
 	if err != nil {
 		log.Fatalln("Couldn't require the hostname argument.")
