@@ -4,6 +4,9 @@ Copyright © 2023 Dex Wood
 package gen
 
 import (
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -18,7 +21,7 @@ type CsrInputInfo struct {
 	CommonName string
 	Sans       []string
 	pkix.Name
-	PrivKey *rsa.PrivateKey
+	PrivKey crypto.PrivateKey
 }
 
 type CsrOutputInfo struct {
@@ -42,18 +45,40 @@ func NewCsr(source io.Reader, csrInfo CsrInputInfo, encryptKey bool, encryptKeyP
 		Type:  "CERTIFICATE REQUEST",
 		Bytes: request,
 	})
-	pkcs1PrivKey := x509.MarshalPKCS1PrivateKey(csrInfo.PrivKey)
+
+	var privKeyBytes []byte
+	var pemType string
+	switch key := csrInfo.PrivKey.(type) {
+	case *rsa.PrivateKey:
+		privKeyBytes = x509.MarshalPKCS1PrivateKey(key)
+		pemType = "RSA PRIVATE KEY"
+	case *ecdsa.PrivateKey:
+		privKeyBytes, err = x509.MarshalECPrivateKey(key)
+		if err != nil {
+			return CsrOutputInfo{}, fmt.Errorf("failed to marshal EC private key: %w", err)
+		}
+		pemType = "EC PRIVATE KEY"
+	case ed25519.PrivateKey:
+		privKeyBytes, err = x509.MarshalPKCS8PrivateKey(key)
+		if err != nil {
+			return CsrOutputInfo{}, fmt.Errorf("failed to marshal Ed25519 private key: %w", err)
+		}
+		pemType = "PRIVATE KEY"
+	default:
+		return CsrOutputInfo{}, errors.New("unsupported private key type")
+	}
+
 	var outPrivPem []byte
 	if encryptKey {
-		encBlock, err := x509.EncryptPEMBlock(source, "RSA PRIVATE KEY", pkcs1PrivKey, []byte(encryptKeyPass), x509.PEMCipherAES256)
+		encBlock, err := x509.EncryptPEMBlock(source, pemType, privKeyBytes, []byte(encryptKeyPass), x509.PEMCipherAES256)
 		if err != nil {
 			return CsrOutputInfo{}, fmt.Errorf("failed to encrypt private key: %w", err)
 		}
 		outPrivPem = pem.EncodeToMemory(encBlock)
 	} else {
 		privPem := pem.EncodeToMemory(&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: pkcs1PrivKey,
+			Type:  pemType,
+			Bytes: privKeyBytes,
 		})
 		outPrivPem = privPem
 	}

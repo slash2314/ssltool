@@ -5,6 +5,10 @@ package cmd
 
 import (
 	"bufio"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509/pkix"
@@ -21,6 +25,7 @@ import (
 )
 
 var encryptKey = false
+var keyType string
 
 // genCmd represents the gen command
 var genCmd = &cobra.Command{
@@ -55,11 +60,32 @@ or you can enter them interactively: COUNTRY, ORG, OU, LOCALITY, and PROVINCE.`,
 
 		subj := getSubject(country, org, ou, locality, province, commonName)
 		var csrOutput gen.CsrOutputInfo
-		key, err := rsa.GenerateKey(rand.Reader, bits)
-		if err != nil {
-			fmt.Println("Couldn't generate private key")
+		var key crypto.PrivateKey
+		var err error
+		switch keyType {
+		case "rsa":
+			key, err = rsa.GenerateKey(rand.Reader, bits)
+			if err != nil {
+				fmt.Println("Couldn't generate RSA private key")
+				os.Exit(1)
+			}
+		case "ecdsa":
+			key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+			if err != nil {
+				fmt.Println("Couldn't generate ECDSA private key")
+				os.Exit(1)
+			}
+		case "ed25519":
+			_, key, err = ed25519.GenerateKey(rand.Reader)
+			if err != nil {
+				fmt.Println("Couldn't generate Ed25519 private key")
+				os.Exit(1)
+			}
+		default:
+			fmt.Printf("Unsupported key type: %s\n", keyType)
 			os.Exit(1)
 		}
+
 		csrInfo := gen.CsrInputInfo{
 			CommonName: commonName,
 			Sans:       trimStrings(sans),
@@ -150,7 +176,8 @@ func init() {
 	genCmd.Flags().StringVarP(&csrOut, "csrout", "", "-", "Csr out filename. - for stdout")
 	genCmd.Flags().StringVarP(&keyOut, "keyout", "", "-", "Key out filename. - for stdout")
 	genCmd.Flags().BoolVarP(&encryptKey, "encryptkey", "e", false, "Encrypt private key")
-	genCmd.Flags().IntVarP(&bits, "bits", "b", 2048, "RSA bits")
+	genCmd.Flags().IntVarP(&bits, "bits", "b", 2048, "RSA bits (only for RSA key type)")
+	genCmd.Flags().StringVarP(&keyType, "key-type", "k", "rsa", "Key type (rsa, ecdsa, ed25519)")
 	err := genCmd.MarkFlagRequired("cn")
 	if err != nil {
 		log.Fatalln("Couldn't mark cn as required.")
