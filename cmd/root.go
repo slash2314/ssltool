@@ -4,23 +4,42 @@ Copyright © 2023 Dex Wood
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 )
 
-// rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "ssltool",
 	Short: "Various SSL utilities",
 	Long:  `Various SSL utilities - Dex Wood`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Args", args)
+		if len(args) > 0 {
+			// Check if first argument is a known subcommand
+			var isSubcommand bool
+			for _, c := range cmd.Commands() {
+				if c.Name() == args[0] || c.HasAlias(args[0]) {
+					isSubcommand = true
+					break
+				}
+			}
+			if !isSubcommand {
+				// Delegate to details command with host argument
+				newArgs := []string{"details", "--host", args[0]}
+				newArgs = append(newArgs, args[1:]...)
+				cmd.SetArgs(newArgs)
+				if err := cmd.Execute(); err != nil {
+					os.Exit(1)
+				}
+				return
+			}
+		}
+		cmd.Help()
+	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -28,10 +47,11 @@ func Execute() {
 	}
 }
 
-var rootExamples = `ssltool details --host www.example.com
+var rootExamples = `
+ssltool -- www.example.com
+ssltool details --host www.example.com
 ssltool details --host www.example.com --cert`
 
 func init() {
-	// I'd like it to just defer to getting certificate details if someone enters something like ssltool www.example.com AI!
 	rootCmd.Example = rootExamples
 }
