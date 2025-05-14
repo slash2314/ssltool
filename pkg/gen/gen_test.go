@@ -89,10 +89,10 @@ func TestGen(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	if !(unencryptedTestCase.csrPem == csrOutput.CsrPem) {
+	if unencryptedTestCase.csrPem != csrOutput.CsrPem {
 		t.Fatalf("Expected \n%v\nActual \n%v\n", unencryptedTestCase.csrPem, csrOutput.CsrPem)
 	}
-	if !(unencryptedTestCase.privKeyPem == csrOutput.PrivateKeyPem) {
+	if unencryptedTestCase.privKeyPem != csrOutput.PrivateKeyPem {
 		t.Fatalf("Expected \n%v\nActual \n%v\n", unencryptedTestCase.privKeyPem, csrOutput.PrivateKeyPem)
 	}
 	//fmt.Printf("%s %s\n", csrOutput.CsrPem, csrOutput.PrivateKeyPem)
