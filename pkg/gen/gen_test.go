@@ -4,6 +4,10 @@ Copyright © 2023 Dex Wood
 package gen
 
 import (
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -116,6 +120,184 @@ func TestGen(t *testing.T) {
 	// Verify private key matches
 	if strings.TrimSpace(csrOutput.PrivateKeyPem) != strings.TrimSpace(unencryptedTestCase.privKeyPem) {
 		t.Error("Private key PEM doesn't match expected value")
+	}
+}
+
+func TestECDSAGeneration(t *testing.T) {
+	subj := pkix.Name{
+		Country:            []string{"US"},
+		Organization:       []string{"Test Org"},
+		OrganizationalUnit: []string{"Test OU"},
+		Locality:           []string{"Test City"},
+		Province:           []string{"Test State"},
+	}
+	
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate ECDSA key: %v", err)
+	}
+	
+	csrInfo := CsrInputInfo{
+		CommonName: "test-ecdsa.example.com",
+		Sans:       []string{"test-ecdsa.example.com", "www.test-ecdsa.example.com"},
+		Name:       subj,
+		PrivKey:    key,
+	}
+	
+	csrOutput, err := NewCsrSecure(csrInfo, false, "")
+	if err != nil {
+		t.Fatalf("Failed to generate CSR: %v", err)
+	}
+	
+	// Validate CSR
+	block, _ := pem.Decode([]byte(csrOutput.CsrPem))
+	if block == nil {
+		t.Fatal("Failed to decode CSR PEM")
+	}
+	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse CSR: %v", err)
+	}
+	
+	if csr.Subject.CommonName != "test-ecdsa.example.com" {
+		t.Errorf("CommonName mismatch: got %s", csr.Subject.CommonName)
+	}
+	if !stringSliceEqual(csr.DNSNames, []string{"test-ecdsa.example.com", "www.test-ecdsa.example.com"}) {
+		t.Errorf("SANs mismatch: got %v", csr.DNSNames)
+	}
+	
+	// Validate private key
+	privBlock, _ := pem.Decode([]byte(csrOutput.PrivateKeyPem))
+	if privBlock == nil {
+		t.Fatal("Failed to decode private key PEM")
+	}
+	if privBlock.Type != "EC PRIVATE KEY" {
+		t.Errorf("Expected EC PRIVATE KEY, got %s", privBlock.Type)
+	}
+	_, err = x509.ParseECPrivateKey(privBlock.Bytes)
+	if err != nil {
+		t.Errorf("Failed to parse EC private key: %v", err)
+	}
+}
+
+func TestEd25519Generation(t *testing.T) {
+	subj := pkix.Name{
+		Country:            []string{"US"},
+		Organization:       []string{"Test Org"},
+		OrganizationalUnit: []string{"Test OU"},
+		Locality:           []string{"Test City"},
+		Province:           []string{"Test State"},
+	}
+	
+	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("Failed to generate Ed25519 key: %v", err)
+	}
+	
+	csrInfo := CsrInputInfo{
+		CommonName: "test-ed25519.example.com",
+		Sans:       []string{"test-ed25519.example.com"},
+		Name:       subj,
+		PrivKey:    privKey,
+	}
+	
+	csrOutput, err := NewCsrSecure(csrInfo, false, "")
+	if err != nil {
+		t.Fatalf("Failed to generate CSR: %v", err)
+	}
+	
+	// Validate CSR
+	block, _ := pem.Decode([]byte(csrOutput.CsrPem))
+	if block == nil {
+		t.Fatal("Failed to decode CSR PEM")
+	}
+	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse CSR: %v", err)
+	}
+	
+	if csr.Subject.CommonName != "test-ed25519.example.com" {
+		t.Errorf("CommonName mismatch: got %s", csr.Subject.CommonName)
+	}
+	
+	// Validate private key
+	privBlock, _ := pem.Decode([]byte(csrOutput.PrivateKeyPem))
+	if privBlock == nil {
+		t.Fatal("Failed to decode private key PEM")
+	}
+	if privBlock.Type != "PRIVATE KEY" {
+		t.Errorf("Expected PRIVATE KEY, got %s", privBlock.Type)
+	}
+	_, err = x509.ParsePKCS8PrivateKey(privBlock.Bytes)
+	if err != nil {
+		t.Errorf("Failed to parse Ed25519 private key: %v", err)
+	}
+	
+	if !pubKey.Equal(csr.PublicKey) {
+		t.Error("CSR public key does not match generated Ed25519 key")
+	}
+}
+
+func TestMissingCommonNameAndSans(t *testing.T) {
+	subj := pkix.Name{
+		Country: []string{"US"},
+	}
+	
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+	
+	csrInfo := CsrInputInfo{
+		CommonName: "",
+		Sans:       []string{},
+		Name:       subj,
+		PrivKey:    key,
+	}
+	
+	_, err = NewCsrSecure(csrInfo, false, "")
+	if err == nil {
+		t.Fatal("Expected error when CommonName and SANs are empty")
+	}
+	expectedErr := "at least one of CommonName or SANs must be provided"
+	if err.Error() != expectedErr {
+		t.Errorf("Expected error '%s', got '%v'", expectedErr, err)
+	}
+}
+
+func TestOnlySans(t *testing.T) {
+	subj := pkix.Name{
+		Country: []string{"US"},
+	}
+	
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("Failed to generate RSA key: %v", err)
+	}
+	
+	csrInfo := CsrInputInfo{
+		CommonName: "",
+		Sans:       []string{"sans.example.com"},
+		Name:       subj,
+		PrivKey:    key,
+	}
+	
+	csrOutput, err := NewCsrSecure(csrInfo, false, "")
+	if err != nil {
+		t.Fatalf("Failed to generate CSR: %v", err)
+	}
+	
+	block, _ := pem.Decode([]byte(csrOutput.CsrPem))
+	if block == nil {
+		t.Fatal("Failed to decode CSR PEM")
+	}
+	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse CSR: %v", err)
+	}
+	
+	if len(csr.DNSNames) != 1 || csr.DNSNames[0] != "sans.example.com" {
+		t.Errorf("Expected SANs [sans.example.com], got %v", csr.DNSNames)
 	}
 }
 
