@@ -32,7 +32,11 @@ func NewCsr(source io.Reader, csrInfo CsrInputInfo, encryptKey bool, encryptKeyP
 	if csrInfo.CommonName == "" && len(csrInfo.Sans) == 0 {
 		return CsrOutputInfo{}, errors.New("at least one of CommonName or SANs must be provided")
 	}
-
+	// Adding the CommonName to the Sans
+	if csrInfo.CommonName != "" {
+		csrInfo.Name.CommonName = csrInfo.CommonName
+	}
+	
 	cr := x509.CertificateRequest{
 		Subject:  csrInfo.Name,
 		DNSNames: csrInfo.Sans,

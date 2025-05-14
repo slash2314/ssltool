@@ -8,10 +8,11 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"math/rand"
+	mathrand "math/rand"
 	"strings"
 	"testing"
 )
@@ -77,7 +78,7 @@ func TestGen(t *testing.T) {
 		Locality:           []string{"Bowling Green"},
 		Province:           []string{"Kentucky"},
 	}
-	rndReader := rand.New(rand.NewSource(1))
+	rndReader := mathrand.New(mathrand.NewSource(0))
 	block, _ := pem.Decode([]byte(unencryptedTestCase.privKeyPem))
 	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
