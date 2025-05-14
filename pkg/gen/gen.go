@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -25,13 +26,17 @@ type CsrOutputInfo struct {
 }
 
 func NewCsr(source io.Reader, csrInfo CsrInputInfo, encryptKey bool, encryptKeyPass string) (CsrOutputInfo, error) {
+	if csrInfo.CommonName == "" && len(csrInfo.Sans) == 0 {
+		return CsrOutputInfo{}, errors.New("at least one of CommonName or SANs must be provided")
+	}
+
 	cr := x509.CertificateRequest{
 		Subject:  csrInfo.Name,
 		DNSNames: csrInfo.Sans,
 	}
 	request, err := x509.CreateCertificateRequest(source, &cr, csrInfo.PrivKey)
 	if err != nil {
-		return CsrOutputInfo{}, err
+		return CsrOutputInfo{}, fmt.Errorf("failed to create certificate request: %w", err)
 	}
 	csrPem := pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE REQUEST",
@@ -42,7 +47,7 @@ func NewCsr(source io.Reader, csrInfo CsrInputInfo, encryptKey bool, encryptKeyP
 	if encryptKey {
 		encBlock, err := x509.EncryptPEMBlock(source, "RSA PRIVATE KEY", pkcs1PrivKey, []byte(encryptKeyPass), x509.PEMCipherAES256)
 		if err != nil {
-			fmt.Println("Can't encrypt private key.")
+			return CsrOutputInfo{}, fmt.Errorf("failed to encrypt private key: %w", err)
 		}
 		outPrivPem = pem.EncodeToMemory(encBlock)
 	} else {
@@ -53,7 +58,7 @@ func NewCsr(source io.Reader, csrInfo CsrInputInfo, encryptKey bool, encryptKeyP
 		outPrivPem = privPem
 	}
 
-	return CsrOutputInfo{string(csrPem), string(outPrivPem)}, err
+	return CsrOutputInfo{string(csrPem), string(outPrivPem)}, nil
 }
 
 func NewCsrSecure(csrInfo CsrInputInfo, encryptKey bool, encryptKeyPass string) (CsrOutputInfo, error) {

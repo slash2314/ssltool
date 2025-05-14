@@ -47,12 +47,24 @@ func RetrieveCertDetails(address string, insecure bool) ([]CertDetails, error) {
 	return nil, errors.New("could not create TLS connect")
 
 }
-func DisplayPemCertificate(details CertDetails) {
-	if details.Cert.PublicKeyAlgorithm == x509.RSA {
-		pemEncoded := pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: details.Cert.Raw,
-		})
-		fmt.Println(string(pemEncoded))
+
+func DisplayPemCertificate(details CertDetails) error {
+	var pemType string
+	switch details.Cert.PublicKeyAlgorithm {
+	case x509.RSA, x509.ECDSA, x509.Ed25519:
+		pemType = "CERTIFICATE"
+	default:
+		return fmt.Errorf("unsupported public key algorithm: %s", details.Cert.PublicKeyAlgorithm.String())
 	}
+
+	pemBlock := &pem.Block{
+		Type:  pemType,
+		Bytes: details.Cert.Raw,
+	}
+	pemEncoded := pem.EncodeToMemory(pemBlock)
+	if pemEncoded == nil {
+		return errors.New("failed to encode certificate to PEM format")
+	}
+	fmt.Println(string(pemEncoded))
+	return nil
 }

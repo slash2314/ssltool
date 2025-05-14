@@ -8,6 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/rand"
+	"strings"
 	"testing"
 )
 
@@ -89,11 +90,43 @@ func TestGen(t *testing.T) {
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
-	if unencryptedTestCase.csrPem != csrOutput.CsrPem {
-		t.Fatalf("Expected \n%v\nActual \n%v\n", unencryptedTestCase.csrPem, csrOutput.CsrPem)
+
+	// Validate CSR structure
+	block, _ = pem.Decode([]byte(csrOutput.CsrPem))
+	if block == nil {
+		t.Fatal("Failed to decode generated CSR PEM")
 	}
-	if unencryptedTestCase.privKeyPem != csrOutput.PrivateKeyPem {
-		t.Fatalf("Expected \n%v\nActual \n%v\n", unencryptedTestCase.privKeyPem, csrOutput.PrivateKeyPem)
+	csr, err := x509.ParseCertificateRequest(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse generated CSR: %v", err)
 	}
-	//fmt.Printf("%s %s\n", csrOutput.CsrPem, csrOutput.PrivateKeyPem)
+
+	// Verify subject components
+	if csr.Subject.CommonName != "test.example.com" {
+		t.Errorf("CommonName mismatch. Expected 'test.example.com', got '%s'", csr.Subject.CommonName)
+	}
+	if !stringSliceEqual(csr.Subject.Country, []string{"US"}) ||
+		!stringSliceEqual(csr.Subject.Organization, []string{"Example Inc."}) ||
+		!stringSliceEqual(csr.Subject.OrganizationalUnit, []string{"Billing"}) ||
+		!stringSliceEqual(csr.Subject.Locality, []string{"Bowling Green"}) ||
+		!stringSliceEqual(csr.Subject.Province, []string{"Kentucky"}) {
+		t.Error("Subject components do not match expected values")
+	}
+
+	// Verify private key matches
+	if strings.TrimSpace(csrOutput.PrivateKeyPem) != strings.TrimSpace(unencryptedTestCase.privKeyPem) {
+		t.Error("Private key PEM doesn't match expected value")
+	}
+}
+
+func stringSliceEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

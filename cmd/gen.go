@@ -115,14 +115,23 @@ func input(scanner *bufio.Scanner, prompt string) string {
 }
 
 func getSubject(country, org, ou, locality, province, commonName string) pkix.Name {
-	return pkix.Name{
-		Country:            []string{country},
-		Organization:       []string{org},
-		OrganizationalUnit: []string{ou},
-		Locality:           []string{locality},
-		Province:           []string{province},
-		CommonName:         commonName,
+	name := pkix.Name{CommonName: commonName}
+	if country != "" {
+		name.Country = []string{country}
 	}
+	if org != "" {
+		name.Organization = []string{org}
+	}
+	if ou != "" {
+		name.OrganizationalUnit = []string{ou}
+	}
+	if locality != "" {
+		name.Locality = []string{locality}
+	}
+	if province != "" {
+		name.Province = []string{province}
+	}
+	return name
 }
 
 var (
