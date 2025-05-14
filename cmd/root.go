@@ -32,5 +32,6 @@ var rootExamples = `ssltool details --host www.example.com
 ssltool details --host www.example.com --cert`
 
 func init() {
+	// I'd like it to just defer to getting certificate details if someone enters something like ssltool www.example.com AI!
 	rootCmd.Example = rootExamples
 }
