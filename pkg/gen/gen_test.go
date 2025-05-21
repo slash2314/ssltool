@@ -82,7 +82,7 @@ func TestGen(t *testing.T) {
 	block, _ := pem.Decode([]byte(unencryptedTestCase.privKeyPem))
 	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 	csrInfo := CsrInputInfo{
 		CommonName: "test.example.com",
@@ -91,9 +91,9 @@ func TestGen(t *testing.T) {
 		PrivKey:    key,
 	}
 
-	csrOutput, err := NewCsr(rndReader, csrInfo, false, "")
+	csrOutput, err := NewCsr(rndReader, csrInfo)
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatal(err.Error())
 	}
 
 	// Validate CSR structure
@@ -132,24 +132,24 @@ func TestECDSAGeneration(t *testing.T) {
 		Locality:           []string{"Test City"},
 		Province:           []string{"Test State"},
 	}
-	
+
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		t.Fatalf("Failed to generate ECDSA key: %v", err)
 	}
-	
+
 	csrInfo := CsrInputInfo{
 		CommonName: "test-ecdsa.example.com",
 		Sans:       []string{"test-ecdsa.example.com", "www.test-ecdsa.example.com"},
 		Name:       subj,
 		PrivKey:    key,
 	}
-	
-	csrOutput, err := NewCsrSecure(csrInfo, false, "")
+
+	csrOutput, err := NewCsrSecure(csrInfo)
 	if err != nil {
 		t.Fatalf("Failed to generate CSR: %v", err)
 	}
-	
+
 	// Validate CSR
 	block, _ := pem.Decode([]byte(csrOutput.CsrPem))
 	if block == nil {
@@ -159,14 +159,14 @@ func TestECDSAGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to parse CSR: %v", err)
 	}
-	
+
 	if csr.Subject.CommonName != "test-ecdsa.example.com" {
 		t.Errorf("CommonName mismatch: got %s", csr.Subject.CommonName)
 	}
 	if !stringSliceEqual(csr.DNSNames, []string{"test-ecdsa.example.com", "www.test-ecdsa.example.com"}) {
 		t.Errorf("SANs mismatch: got %v", csr.DNSNames)
 	}
-	
+
 	// Validate private key
 	privBlock, _ := pem.Decode([]byte(csrOutput.PrivateKeyPem))
 	if privBlock == nil {
@@ -189,24 +189,24 @@ func TestEd25519Generation(t *testing.T) {
 		Locality:           []string{"Test City"},
 		Province:           []string{"Test State"},
 	}
-	
+
 	pubKey, privKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatalf("Failed to generate Ed25519 key: %v", err)
 	}
-	
+
 	csrInfo := CsrInputInfo{
 		CommonName: "test-ed25519.example.com",
 		Sans:       []string{"test-ed25519.example.com"},
 		Name:       subj,
 		PrivKey:    privKey,
 	}
-	
-	csrOutput, err := NewCsrSecure(csrInfo, false, "")
+
+	csrOutput, err := NewCsrSecure(csrInfo)
 	if err != nil {
 		t.Fatalf("Failed to generate CSR: %v", err)
 	}
-	
+
 	// Validate CSR
 	block, _ := pem.Decode([]byte(csrOutput.CsrPem))
 	if block == nil {
@@ -216,11 +216,11 @@ func TestEd25519Generation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to parse CSR: %v", err)
 	}
-	
+
 	if csr.Subject.CommonName != "test-ed25519.example.com" {
 		t.Errorf("CommonName mismatch: got %s", csr.Subject.CommonName)
 	}
-	
+
 	// Validate private key
 	privBlock, _ := pem.Decode([]byte(csrOutput.PrivateKeyPem))
 	if privBlock == nil {
@@ -233,7 +233,7 @@ func TestEd25519Generation(t *testing.T) {
 	if err != nil {
 		t.Errorf("Failed to parse Ed25519 private key: %v", err)
 	}
-	
+
 	if !pubKey.Equal(csr.PublicKey) {
 		t.Error("CSR public key does not match generated Ed25519 key")
 	}
@@ -243,20 +243,20 @@ func TestMissingCommonNameAndSans(t *testing.T) {
 	subj := pkix.Name{
 		Country: []string{"US"},
 	}
-	
+
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatalf("Failed to generate RSA key: %v", err)
 	}
-	
+
 	csrInfo := CsrInputInfo{
 		CommonName: "",
 		Sans:       []string{},
 		Name:       subj,
 		PrivKey:    key,
 	}
-	
-	_, err = NewCsrSecure(csrInfo, false, "")
+
+	_, err = NewCsrSecure(csrInfo)
 	if err == nil {
 		t.Fatal("Expected error when CommonName and SANs are empty")
 	}
@@ -270,24 +270,24 @@ func TestOnlySans(t *testing.T) {
 	subj := pkix.Name{
 		Country: []string{"US"},
 	}
-	
+
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatalf("Failed to generate RSA key: %v", err)
 	}
-	
+
 	csrInfo := CsrInputInfo{
 		CommonName: "",
 		Sans:       []string{"sans.example.com"},
 		Name:       subj,
 		PrivKey:    key,
 	}
-	
-	csrOutput, err := NewCsrSecure(csrInfo, false, "")
+
+	csrOutput, err := NewCsrSecure(csrInfo)
 	if err != nil {
 		t.Fatalf("Failed to generate CSR: %v", err)
 	}
-	
+
 	block, _ := pem.Decode([]byte(csrOutput.CsrPem))
 	if block == nil {
 		t.Fatal("Failed to decode CSR PEM")
@@ -296,7 +296,7 @@ func TestOnlySans(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to parse CSR: %v", err)
 	}
-	
+
 	if len(csr.DNSNames) != 1 || csr.DNSNames[0] != "sans.example.com" {
 		t.Errorf("Expected SANs [sans.example.com], got %v", csr.DNSNames)
 	}

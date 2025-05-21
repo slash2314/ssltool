@@ -28,7 +28,7 @@ type CsrOutputInfo struct {
 	CsrPem, PrivateKeyPem string
 }
 
-func NewCsr(source io.Reader, csrInfo CsrInputInfo, encryptKey bool, encryptKeyPass string) (CsrOutputInfo, error) {
+func NewCsr(source io.Reader, csrInfo CsrInputInfo) (CsrOutputInfo, error) {
 	if csrInfo.CommonName == "" && len(csrInfo.Sans) == 0 {
 		return CsrOutputInfo{}, errors.New("at least one of CommonName or SANs must be provided")
 	}
@@ -36,7 +36,7 @@ func NewCsr(source io.Reader, csrInfo CsrInputInfo, encryptKey bool, encryptKeyP
 	if csrInfo.CommonName != "" {
 		csrInfo.Name.CommonName = csrInfo.CommonName
 	}
-	
+
 	cr := x509.CertificateRequest{
 		Subject:  csrInfo.Name,
 		DNSNames: csrInfo.Sans,
@@ -73,23 +73,15 @@ func NewCsr(source io.Reader, csrInfo CsrInputInfo, encryptKey bool, encryptKeyP
 	}
 
 	var outPrivPem []byte
-	if encryptKey {
-		encBlock, err := x509.EncryptPEMBlock(source, pemType, privKeyBytes, []byte(encryptKeyPass), x509.PEMCipherAES256)
-		if err != nil {
-			return CsrOutputInfo{}, fmt.Errorf("failed to encrypt private key: %w", err)
-		}
-		outPrivPem = pem.EncodeToMemory(encBlock)
-	} else {
-		privPem := pem.EncodeToMemory(&pem.Block{
-			Type:  pemType,
-			Bytes: privKeyBytes,
-		})
-		outPrivPem = privPem
-	}
+	privPem := pem.EncodeToMemory(&pem.Block{
+		Type:  pemType,
+		Bytes: privKeyBytes,
+	})
+	outPrivPem = privPem
 
 	return CsrOutputInfo{string(csrPem), string(outPrivPem)}, nil
 }
 
-func NewCsrSecure(csrInfo CsrInputInfo, encryptKey bool, encryptKeyPass string) (CsrOutputInfo, error) {
-	return NewCsr(rand.Reader, csrInfo, encryptKey, encryptKeyPass)
+func NewCsrSecure(csrInfo CsrInputInfo) (CsrOutputInfo, error) {
+	return NewCsr(rand.Reader, csrInfo)
 }

@@ -18,10 +18,8 @@ import (
 	"os"
 	"ssltool/pkg/gen"
 	"strings"
-	"syscall"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 var encryptKey = false
@@ -45,17 +43,6 @@ or you can enter them interactively: COUNTRY, ORG, OU, LOCALITY, and PROVINCE.`,
 		if len(commonName) == 0 {
 			fmt.Println("The common name must not be blank.")
 			os.Exit(1)
-		}
-		encryptKeyPass := ""
-		if encryptKey {
-			fmt.Print("Password: ")
-			// int cast is required for windows
-			password, err := term.ReadPassword(int(syscall.Stdin))
-			if err != nil {
-				fmt.Println("Couldn't get password.")
-				os.Exit(1)
-			}
-			encryptKeyPass = string(password)
 		}
 
 		subj := getSubject(country, org, ou, locality, province, commonName)
@@ -93,7 +80,7 @@ or you can enter them interactively: COUNTRY, ORG, OU, LOCALITY, and PROVINCE.`,
 			PrivKey:    key,
 		}
 
-		csrOutput, err = gen.NewCsrSecure(csrInfo, encryptKey, encryptKeyPass)
+		csrOutput, err = gen.NewCsrSecure(csrInfo)
 		if err != nil {
 			fmt.Println("Couldn't generate CSR")
 			os.Exit(1)
@@ -175,7 +162,6 @@ func init() {
 	genCmd.Flags().StringSliceVarP(&sans, "sans", "s", []string{}, "Sans list. In the form www.example.com,www-prod01.example.edu")
 	genCmd.Flags().StringVarP(&csrOut, "csrout", "", "-", "Csr out filename. - for stdout")
 	genCmd.Flags().StringVarP(&keyOut, "keyout", "", "-", "Key out filename. - for stdout")
-	genCmd.Flags().BoolVarP(&encryptKey, "encryptkey", "e", false, "Encrypt private key")
 	genCmd.Flags().IntVarP(&bits, "bits", "b", 2048, "RSA bits (only for RSA key type)")
 	genCmd.Flags().StringVarP(&keyType, "key-type", "k", "rsa", "Key type (rsa, ecdsa, ed25519)")
 	err := genCmd.MarkFlagRequired("cn")
